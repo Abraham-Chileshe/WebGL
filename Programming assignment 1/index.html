@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Bouncing Cube with Light</title>
+    <style>
+      /* Make sure there's no margin and overflow is hidden for full-screen rendering */
+      body { margin: 0; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // Set up the scene, camera, and renderer
+      const scene = new THREE.Scene(); // Create a new scene
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); // Perspective camera
+      const renderer = new THREE.WebGLRenderer(); // WebGL renderer
+      renderer.setSize(window.innerWidth, window.innerHeight); // Set renderer size to window size
+      document.body.appendChild(renderer.domElement); // Add renderer to the DOM
+
+      // Add ambient light for general illumination
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // Soft white light to illuminate the entire scene
+      scene.add(ambientLight); // Add ambient light to the scene
+
+      // Add a point light to create dynamic lighting and shadows
+      const pointLight = new THREE.PointLight(0xFFFFAA, 2); // Light-yellow point light with higher intensity
+      pointLight.position.set(-5, 5, 5); // Position the light in the upper left corner of the scene
+      scene.add(pointLight); // Add the point light to the scene
+
+      // Add shadows to create more realism
+      renderer.shadowMap.enabled = true; // Enable shadow maps in the renderer
+      pointLight.castShadow = true; // Enable shadows for the point light
+
+      // Create a plane to receive shadows
+      const planeGeometry = new THREE.PlaneGeometry(10, 10); // Large plane for the floor
+      const planeMaterial = new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.3 }); // Slightly transparent material to show shadows
+      const plane = new THREE.Mesh(planeGeometry, planeMaterial); // Create the plane
+      plane.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
+      plane.position.y = -2; // Move the plane down
+      plane.receiveShadow = true; // Allow the plane to receive shadows
+      scene.add(plane); // Add the plane to the scene
+
+      // Create the 3D object (Cube)
+      const geometry = new THREE.BoxGeometry(1, 1, 1); // Cube geometry
+      const material = new THREE.MeshPhongMaterial({ color: 0xff0000 }); // Phong material reacts to light, starting with red
+      const cube = new THREE.Mesh(geometry, material); // Create the cube
+      cube.scale.set(0.5, 0.5, 0.5); // Scale down the cube
+      cube.castShadow = true; // Allow the cube to cast shadows
+      scene.add(cube); // Add the cube to the scene
+
+      // Set the camera position to view the cube and the scene
+      camera.position.z = 5;
+
+      // Variables to control the cube's movement (speed and direction)
+      let speedX = 0.05; // Horizontal movement speed
+      let speedY = 0.03; // Vertical movement speed
+
+      // Array of colors to randomly change when the cube hits the edge
+      const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00]; // Red, Green, Blue, Yellow
+
+      // Function to change the cube's color randomly from the array
+      function changeColor() {
+        const randomColor = colors[Math.floor(Math.random() * colors.length)]; // Choose a random color
+        cube.material.color.setHex(randomColor); // Set the new color to the cube
+      }
+
+      // Function to animate and move the cube
+      function animate() {
+        requestAnimationFrame(animate); // Continuously request the next animation frame
+
+        // Move the cube in x and y directions
+        cube.position.x += speedX;
+        cube.position.y += speedY;
+
+        // Bounce the cube off the edges of the screen
+        if (cube.position.x >= 3 || cube.position.x <= -3) {
+          speedX = -speedX; // Reverse direction on X
+          changeColor(); // Change color when hitting the X edge
+        }
+        if (cube.position.y >= 2 || cube.position.y <= -2) {
+          speedY = -speedY; // Reverse direction on Y
+          changeColor(); // Change color when hitting the Y edge
+        }
+
+        // Render the scene with updated positions and lighting
+        renderer.render(scene, camera);
+      }
+
+      // Handle window resizing to maintain aspect ratio and scene scaling
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight); // Update renderer size
+        camera.aspect = window.innerWidth / window.innerHeight; // Adjust camera aspect ratio
+        camera.updateProjectionMatrix(); // Update the camera's projection matrix
+      });
+
+      // Start the animation loop
+      animate();
+    </script>
+  </body>
+</html>
