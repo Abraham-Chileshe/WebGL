@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="description" content="CS4406 Computer Graphics - Exercise #5"/>
+    <title>Programming Assignment 5</title>
+    <style>
+        /* Styles for the container that holds the WebGL renderer */
+        #container {
+            background: #000000; /* Black background */
+            width: 100%;         /* Full width */
+            height: 100%;        /* Full height */
+        }
+    </style>
+    <!-- Load external libraries for rendering and GUI -->
+    <script type="text/javascript" src="https://getfirebug.com/firebug-litedebug.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/108/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datgui/0.6.5/dat.gui.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.2.1/math.min.js"></script>
+</head>
+<body>
+    <div id="container"></div> <!-- Container for the WebGL canvas -->
+    <script type="text/javascript">
+        // Set the scene size
+        var WIDTH = 700, HEIGHT = 700;
+
+        // Set some camera attributes
+        var VIEW_ANGLE = 45, ASPECT = WIDTH / HEIGHT, NEAR = 1, FAR = 1000;
+
+        // Get the DOM element to attach to
+        var $container = $('#container');
+
+        // Create a WebGL renderer and enable shadows
+        var renderer = new THREE.WebGLRenderer();
+        renderer.shadowMap.enabled = true; // Enable shadow mapping
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Use soft shadows
+
+        // Create the scene, camera, and clock
+        var scene = new THREE.Scene();
+        var clock = new THREE.Clock();
+        var camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+        var canvas = renderer.domElement;
+
+        // Create a listener for mouse movement over the canvas
+        canvas.addEventListener('mousemove', onMouseMove);
+
+        // Position the camera
+        camera.position.z = 200;
+        scene.add(camera); // Add the camera to the scene
+
+        // Start the renderer and attach it to the container
+        renderer.setSize(WIDTH, HEIGHT);
+        $container.append(renderer.domElement);
+
+        // -------------------------------------------------------------------------
+        // NOTE: TO ROTATE THE MOLECULE, MOVE YOUR MOUSE OVER THE MOLECULE IN THE OUTPUT WINDOW.
+        // THE MOLECULE IS NOT CONTROLLED BY CLICK-DRAGGING.
+        // -------------------------------------------------------------------------
+
+        // Create lighting for the scene
+        var areaLight = new THREE.RectAreaLight(0xffffff, 10); // Rect area light
+        var spotLight = new THREE.SpotLight(0xffffff); // Spotlight
+        spotLight.position.set(0, 80, 0); // Position the spotlight
+        spotLight.castShadow = true; // Enable shadow casting
+
+        // Add lights to the scene
+        scene.add(areaLight, spotLight);
+
+        // Define the shadow qualities for the spotlight
+        spotLight.shadow.mapSize.width = 512; // Shadow map width
+        spotLight.shadow.mapSize.height = 512; // Shadow map height
+        spotLight.shadow.camera.near = 0.5; // Near plane for shadow camera
+        spotLight.shadow.camera.far = 500; // Far plane for shadow camera
+        spotLight.shadow.focus = 1; // Shadow focus
+
+        // Create materials for the atoms and bonds
+        // CARBON
+        var cMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,      // Red color
+            emissive: 0xa22222,   // Emissive color
+            shininess: 10,        // Shininess
+            specular: 0x0fffff    // Specular highlight color
+        });
+
+        // HYDROGEN
+        var hMaterial = new THREE.MeshPhongMaterial({
+            color: 0x0000ff,      // Blue color
+            emissive: 0x000ff,    // Emissive color
+            shininess: 10,        // Shininess
+            specular: 0x0fffff    // Specular highlight color
+        });
+
+        // BONDS
+        var bGeometry = new THREE.CylinderGeometry(5, 5, 20, 32); // Bond geometry
+        var bMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,      // White color for bonds
+            emissive: 0xffffff    // Emissive color
+        });
+
+        // PLANE
+        var pGeometry = new THREE.PlaneGeometry(500, 500, 500); // Ground plane geometry
+        var pMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00FF00,      // Green color
+            emissive: 0x000000,   // No emissive color
+            side: THREE.DoubleSide  // Both sides visible
+        });
+
+        // Set up sphere geometry parameters for carbon and hydrogen
+        var cRadius = 15, cSegments = 32, cRings = 32;
+        var hRadius = 10, hSegments = 32, hRings = 32;
+
+        // Create meshes for carbon and hydrogen atoms
+        var carbon = new THREE.Mesh(new THREE.SphereGeometry(cRadius, cSegments, cRings), cMaterial);
+        var hydrogen1 = new THREE.Mesh(new THREE.SphereGeometry(hRadius, hSegments, hRings), hMaterial);
+        var hydrogen2 = new THREE.Mesh(new THREE.SphereGeometry(hRadius, hSegments, hRings), hMaterial);
+        var hydrogen3 = new THREE.Mesh(new THREE.SphereGeometry(hRadius, hSegments, hRings), hMaterial);
+        var hydrogen4 = new THREE.Mesh(new THREE.SphereGeometry(hRadius, hSegments, hRings), hMaterial);
+
+        // Create meshes for the bonds
+        var bond1 = new THREE.Mesh(bGeometry, bMaterial);
+        var bond2 = new THREE.Mesh(bGeometry, bMaterial);
+        var bond3 = new THREE.Mesh(bGeometry, bMaterial);
+        var bond4 = new THREE.Mesh(bGeometry, bMaterial);
+
+        // Group the carbon, hydrogen, and bonds together for easier manipulation
+        var CH4 = new THREE.Group();
+        CH4.add(carbon, hydrogen1, hydrogen2, hydrogen3, hydrogen4, bond1, bond2, bond3, bond4);
+
+        // Create the ground plane mesh
+        var plane = new THREE.Mesh(pGeometry, pMaterial);
+
+        // Set shadow casting/receiving properties for all objects
+        carbon.castShadow = true;
+        hydrogen1.castShadow = true;
+        hydrogen2.castShadow = true;
+        hydrogen3.castShadow = true;
+        hydrogen4.castShadow = true;
+        bond1.castShadow = true;
+        bond2.castShadow = true;
+        bond3.castShadow = true;
+        bond4.castShadow = true;
+        plane.receiveShadow = true;
+
+        // Add the molecule and plane to the scene
+        scene.add(CH4, plane);
+
+        // Position the hydrogen atoms and bonds relative to the carbon atom
+        hydrogen1.position.y = 35; // Position hydrogen atom 1
+        hydrogen2.position.set(0, -15, 30); // Position hydrogen atom 2
+        hydrogen3.position.set(-30, -15, -10); // Position hydrogen atom 3
+        hydrogen4.position.set(30, -15, -10); // Position hydrogen atom 4
+        bond1.position.y = 20; // Position bond 1
+        bond2.position.set(0, -10, 15); // Position bond 2
+        bond2.rotation.x = -20; // Rotate bond 2
+        bond3.position.set(-15, -10, -6); // Position bond 3
+        bond3.rotation.set(-0.2, 0, -20); // Rotate bond 3
+        bond4.position.set(15, -10, -6); // Position bond 4
+        bond4.rotation.set(0.2, 0, 20); // Rotate bond 4
+        plane.position.y = -45; // Position the ground plane
+        plane.rotation.x = 300; // Rotate the plane
+
+        // This function determines how the CH4 molecule reacts to mouse movements
+        function onMouseMove(event) {
+            CH4.rotation.x += event.movementY * 0.005; // Rotate molecule on Y movement
+            CH4.rotation.y += event.movementX * 0.005; // Rotate molecule on X movement
+        }
+
+        // Animation loop to continuously render the scene
+        function animate() {
+            requestAnimationFrame(animate); // Request next frame
+            render(); // Render the scene
+        }
+
+        // Render the scene from the perspective of the camera
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        animate(); // Start the animation
+    </script>
+</body>
+</html>
